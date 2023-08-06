@@ -1,0 +1,60 @@
+#%%'Import libraries'
+import os 
+import pandas as pd
+import numpy as np
+from plotnine import *
+from siuba import *
+from sklearn.linear_model import LinearRegression
+from sklearn import metrics
+#
+' Simple Linear regression'
+#%% Load data
+ruta = "https://raw.githubusercontent.com/scidatmath2020/ML_Py_23/main/data/datos_regresion.csv"
+df = pd.read_csv(ruta)
+df.head()
+#
+#%% Plot data
+(ggplot(data=df)+
+geom_point(mapping=aes(x="caracteristica_1",y="valor_real"),color="red")
+)
+#
+#%% Split training & testing variables
+x = df['caracteristica_1']
+x = x.values
+x = x.reshape(-1,1)
+y = df['valor_real']
+y = y.values
+#
+#%% Create Simple Linear Regression model
+lr = LinearRegression()
+#
+#%% Fit model
+lr.fit(x.reshape(-1,1),y)
+print('alpha of regression: ',lr.intercept_)
+print('beta of regression: ',lr.coef_)
+#
+
+# %% Add predictions to original df
+df['predicciones'] = lr.predict(x)
+print(df.head())
+#
+# %% Plot predictions
+(ggplot(data=df)+
+geom_point(mapping=aes(x="caracteristica_1",y="valor_real"),color="blue") + 
+geom_point(mapping=aes(x="caracteristica_1",y="predicciones"),color="red") +
+geom_abline(slope=lr.coef_,
+            intercept=lr.intercept_) + 
+geom_smooth(mapping=aes(x="caracteristica_1",y="valor_real"),color="yellow")
+)
+# %% Evaluate model
+mae = metrics.mean_absolute_error(df["valor_real"],df["predicciones"])
+mse = metrics.mean_squared_error(df["valor_real"],df["predicciones"])
+rmse = np.sqrt(mse)
+r2 = metrics.r2_score(df["valor_real"],df["predicciones"])
+r2adj = 1 - ((1-r2)*(len(df)-1))/(len(df)-2)
+print("Mean absolute error: ",mae)
+print("Mean square error: ",mse)
+print("Root Mean square error: ",rmse)
+print("R2: ",r2)
+print("R2 Adjusted: ",r2adj)
+# 
