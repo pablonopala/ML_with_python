@@ -1,0 +1,116 @@
+' Multiple Linear Regression'
+
+#%%'Import libraries'
+import os 
+import pandas as pd
+import numpy as np
+from plotnine import *
+from siuba import *
+from sklearn.linear_model import LinearRegression
+from sklearn import metrics
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score
+#
+#%% Load data
+ruta = "https://raw.githubusercontent.com/scidatmath2020/ML_Py_23/main/data/casas_boston.csv"
+df = pd.read_csv(ruta)
+seed = 25
+df.head()
+# %% Select variables needed
+y = df['MEDV']
+x = df.loc[:,df.columns!='MEDV']
+# %% Create Multiple Linear Regression Model and add predictions to original df
+mlr = LinearRegression()
+mlr.fit(X=x,y=y)
+df['prediction'] = mlr.predict(x)
+# %% Function to get metrics to evaluate Model
+#Parameters:
+#1.- independientes = dataframe of independent variables
+#2.- nco = Name of the objective column
+#3.- tabla full = complete dataframe including predictions
+def evaluate_regression(independientes,nco,tabla_full):
+    n = independientes.shape[0]
+    k = independientes.shape[1]
+    mae = metrics.mean_absolute_error(tabla_full[nco],tabla_full["prediction"])
+    rmse = np.sqrt(metrics.mean_squared_error(tabla_full[nco],tabla_full["prediction"]))
+    r2 = metrics.r2_score(tabla_full[nco],tabla_full["prediction"])
+    r2_adj = 1-(1-r2)*(n-1)/(n-k-1)
+    return {"r2_adj":r2_adj,"mae":mae,"rmse":rmse}
+# %% Obtain metrics for current dataset
+evaluate_regression(x,'MEDV',df)
+#%%
+'''
+###############################################################################
+################                                          #####################
+################ separation for training / testing splits #####################
+################                                          #####################
+###############################################################################
+
+1.- 33% od data used for training
+2.- Seed = 13
+'''
+
+#%%
+ind_train, ind_test, obj_train, obj_test = train_test_split(
+                                            x,y,test_size=0.33,random_state=seed)
+
+#ind_train.shape[0]
+#ind_test.shape[0]
+#obj_train.shape[0]
+#obj_test.shape[0]
+
+# %%
+df_train = ind_train.copy()
+df_test = ind_test.copy()
+df_train['objective'] = obj_train
+df_test['objective'] = obj_test
+# %% Create Multiple Linear Regression Model
+mlr_train = LinearRegression()
+mlr_train.fit(X=ind_train,y=obj_train)
+df_train['prediction'] = mlr_train.predict(ind_train)
+df_test['prediction'] = mlr_train.predict(ind_test)
+
+# %%Apply function to evaluate metrics for training set
+evaluate_regression(ind_train,'objective',df_train)
+# %% Apply function to evaluate metrics for test set 
+evaluate_regression(ind_test,'objective',df_test)
+
+# %%Present results
+results = {}
+results['original_df'] = evaluate_regression(x,'MEDV',df)
+results['original_train'] = evaluate_regression(ind_train,'objective',df_train)
+results['original_test'] = evaluate_regression(ind_test,'objective',df_test)
+results = pd.DataFrame(results)
+results
+#%%
+'''
+###############################################################################
+################                                          #####################
+################            Cross-validation              #####################
+################                                          #####################
+###############################################################################
+'''
+mlr_validation = LinearRegression()
+cross_val_score(mlr_validation,
+                x,
+                y,
+                scoring="neg_root_mean_squared_error",
+                cv=10)
+
+rmse_validation = [-cross_val_score(mlr_validation,
+               x,
+               y,
+               scoring = "neg_root_mean_squared_error",
+               cv=z).mean() for z in range(10,150) 
+]
+
+cross_evaluation = {"particiones":list(range(10,150)),
+                    "rmse_validation":rmse_validation}
+cross_evaluation = pd.DataFrame(cross_evaluation)
+cross_evaluation
+# %% Plot cross evaluation
+(ggplot(data=cross_evaluation) + 
+ geom_line(mapping=aes(x="particiones",
+                       y="rmse_validation"))
+)
+
