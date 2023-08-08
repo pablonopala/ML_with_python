@@ -1,0 +1,125 @@
+'Logistic Regression' 
+
+#%% Import libraries
+import pandas as pd
+import numpy as np
+from siuba import *
+from siuba.dply.vector import *
+from plotnine import *
+from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn import metrics
+#%% Load data
+route = "https://raw.githubusercontent.com/scidatmath2020/ML_Py_23/main/data/cancer_mama.csv"
+data = pd.read_csv(route)
+state = 3500
+#%% Examinate data
+data.shape
+data.columns
+#%% 0 indicates malignant cancer and 1 indicates benign cancer.
+#Usually in health analysis, 1 is used to label categories we want to found, so we are going to replace 0 to 1 and vice versa.
+data_replace = data.replace({'diagnosis':{0: 1,1: 0}})
+# %%
+data_grouped = data_replace.groupby(by='diagnosis')
+data_grouped_count = data_grouped['diagnosis'].count()
+total_count = len(data_replace)
+percentage = (data_grouped_count/total_count)*100
+df_grouped = data_grouped_count.to_frame()
+df_grouped.index.name = 'Categories'
+df_grouped_perc = percentage.to_frame()
+df_grouped_perc.index.name = 'Categories'
+data_merge = pd.merge(df_grouped,df_grouped_perc,on="Categories",suffixes=("_count","_%"))
+data_merge.head()
+# %% Create a Linear Regression model
+data_worst_area = data_replace[['worst_area','diagnosis']]
+test = data_worst_area['worst_area'].values
+x = data_worst_area['worst_area'].values
+y = data_worst_area['diagnosis'].values
+x = x.reshape(-1,1)
+w = y.copy()
+y = y.reshape(-1,1)
+(ggplot(data=data_worst_area) + 
+    geom_point(mapping=aes(x="worst_area",y="diagnosis"),color="red")
+)
+lmr = LinearRegression()
+lmr.fit(X=x,
+        y=y)
+data_worst_area['predictions_lr'] = lmr.predict(x)
+(ggplot(data=data_worst_area) + 
+    geom_point(mapping=aes(x="worst_area",y="diagnosis"),color="red") + 
+    geom_line(mapping=aes(x="worst_area",y="predictions_lr"),color="blue") 
+)
+# %% When we apply LinearRegression model we can see that due to the fact of the categories, it is better
+#to use a Logistic Regression
+lmr_log = LogisticRegression()
+lmr_log.fit(X=x,
+            y=y)
+data_worst_area = data_worst_area >> mutate(probabilities_reg_logis = (lmr_log.predict_proba(data_worst_area >> select(_.worst_area)))[:,1])
+data_worst_area
+(ggplot(data=data_worst_area) + 
+    geom_point(mapping=aes(x="worst_area",y="diagnosis"),color="red") + 
+    geom_line(mapping=aes(x="worst_area",y="predictions_lr"),color="blue") +
+    geom_line(mapping=aes(x="worst_area",y="probabilities_reg_logis"),color="darkgreen")
+)
+data_worst_area = data_worst_area >> mutate(prediction = lmr_log.predict(data_worst_area >> select(_.worst_area)))
+data_worst_area
+# %%
+'''
+###############################################################################
+################                                          #####################
+################           Logistic Regression            #####################
+################                                          #####################
+###############################################################################
+'''
+
+#Split train and test sets
+ind_var = data_replace.iloc[:,data_replace.columns != 'diagnosis']
+objective = data_replace["diagnosis"]
+#Apply train test split
+ind_train, ind_test, obj_train, obj_test = train_test_split(ind_var,objective,test_size=0.3,random_state=state)
+#Create a Logistic Regression model with newton cholesky
+log_reg = LogisticRegression(solver="newton-cholesky")
+#Fit model with train sets
+log_reg.fit(ind_train,obj_train.values.ravel())
+predictions = log_reg.predict(ind_test)
+predictions_prob = log_reg.predict_proba(ind_test)
+real_obj = obj_test.values.ravel()
+# %% Represent result with a list format
+def tupla_clase_prediccion(y_real, y_pred):
+    return list(zip(y_real, y_pred))
+
+tupla_clase_prediccion(real_obj, predictions)[:20]
+
+# %% Get the positives and falses rates
+def VP(clases_reales, predicciones):
+    par_clase_prediccion = tupla_clase_prediccion(clases_reales, predicciones)
+    return len([obs for obs in par_clase_prediccion if obs[0]==1 and obs[1]==1])
+
+def VN(clases_reales, predicciones):
+    par_clase_prediccion = tupla_clase_prediccion(clases_reales, predicciones)
+    return len([obs for obs in par_clase_prediccion if obs[0]==0 and obs[1]==0])
+    
+def FP(clases_reales, predicciones):
+    par_clase_prediccion = tupla_clase_prediccion(clases_reales, predicciones)
+    return len([obs for obs in par_clase_prediccion if obs[0]==0 and obs[1]==1])
+
+def FN(clases_reales, predicciones):
+    par_clase_prediccion = tupla_clase_prediccion(clases_reales, predicciones)
+    return len([obs for obs in par_clase_prediccion if obs[0]==1 and obs[1]==0])
+
+
+print("""
+Verdaderos Positivos: {}
+Verdaderos Negativos: {}
+Falsos Positivos: {}
+Falsos Negativos: {}
+""".format(
+    VP(real_obj, predictions),
+    VN(real_obj, predictions),
+    FP(real_obj, predictions),
+    FN(real_obj, predictions)    
+))
+
+
+# %%
