@@ -123,3 +123,39 @@ Falsos Negativos: {}
 
 
 # %%
+'''
+###############################################################################
+################                                          #####################
+################          Métricas de evaluación          #####################
+################                                          #####################
+###############################################################################
+''' 
+
+'''Accuracy'''
+metrics.accuracy_score(real_obj, predictions)
+
+'''Precission'''
+
+def precision(clases_reales, predicciones):
+    vp = VP(clases_reales, predicciones)
+    fp = FP(clases_reales, predicciones)
+    return vp / (vp+fp)
+
+precision(real_obj, predictions)
+
+'''Sensibilidad'''
+
+metrics.recall_score(real_obj, predictions)
+
+'''F1 punctuation'''
+
+metrics.f1_score(real_obj, predictions)
+
+results ={'Accuracy': metrics.accuracy_score(real_obj, predictions),
+ 'Precission' : precision(real_obj, predictions),
+ 'Recall' : metrics.recall_score(real_obj, predictions),
+ 'F1' : metrics.f1_score(real_obj, predictions)
+         }
+
+for key, value in results.items():
+    print(f"{key}: {value}")
